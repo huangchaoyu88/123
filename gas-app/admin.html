@@ -1,0 +1,79 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Admin</title>
+    <style>
+      body { font-family: Arial, sans-serif; max-width: 720px; margin: 24px auto; padding: 0 16px; }
+      .card { border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin: 12px 0; }
+      input, button { width: 100%; padding: 8px; margin: 8px 0; }
+      .message { padding: 8px; border-radius: 6px; margin-top: 8px; }
+      .ok { background: #ecfdf3; color: #046c4e; }
+      .error { background: #fef2f2; color: #b91c1c; }
+    </style>
+  </head>
+  <body>
+    <h1>管理後台（簡易版）</h1>
+
+    <div class="card">
+      <h3>登入</h3>
+      <input id="password" type="password" placeholder="Admin password" />
+      <button id="loginBtn">登入</button>
+      <div id="loginMsg"></div>
+    </div>
+
+    <div class="card">
+      <h3>取消預約</h3>
+      <input id="bookingId" placeholder="Booking ID (例如 B1730000000000)" />
+      <button id="cancelBtn">取消</button>
+      <div id="cancelMsg"></div>
+    </div>
+
+    <script>
+      const apiBase = window.location.href.split('?')[0];
+      let token = '';
+
+      const postJson = async (payload) => {
+        const res = await fetch(apiBase, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        return res.json();
+      };
+
+      const show = (el, text, isError = false) => {
+        el.innerHTML = `<div class="message ${isError ? 'error' : 'ok'}">${text}</div>`;
+      };
+
+      document.getElementById('loginBtn').addEventListener('click', async () => {
+        const loginMsg = document.getElementById('loginMsg');
+        try {
+          const password = document.getElementById('password').value;
+          const data = await postJson({ action: 'login', password });
+          if (!data.ok) throw new Error(data.error.message);
+          token = data.data.token;
+          show(loginMsg, '登入成功，token 已存在記憶體。');
+        } catch (err) {
+          show(loginMsg, err.message, true);
+        }
+      });
+
+      document.getElementById('cancelBtn').addEventListener('click', async () => {
+        const cancelMsg = document.getElementById('cancelMsg');
+        try {
+          if (!token) {
+            throw new Error('請先登入。');
+          }
+          const bookingId = document.getElementById('bookingId').value.trim();
+          const data = await postJson({ action: 'cancel', bookingId, token });
+          if (!data.ok) throw new Error(data.error.message);
+          show(cancelMsg, `取消成功：${data.data.bookingId}`);
+        } catch (err) {
+          show(cancelMsg, err.message, true);
+        }
+      });
+    </script>
+  </body>
+</html>
