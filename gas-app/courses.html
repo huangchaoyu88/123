@@ -1,0 +1,127 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>課程預約</title>
+    <style>
+      body { font-family: Arial, sans-serif; max-width: 760px; margin: 24px auto; padding: 0 16px; }
+      .card { border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin: 12px 0; }
+      label { display: block; margin: 8px 0 4px; }
+      select, input, button { width: 100%; padding: 8px; margin-bottom: 8px; }
+      button { cursor: pointer; }
+      .slots li { margin: 8px 0; }
+      .message { padding: 8px; border-radius: 6px; }
+      .ok { background: #ecfdf3; color: #046c4e; }
+      .error { background: #fef2f2; color: #b91c1c; }
+    </style>
+  </head>
+  <body>
+    <h1>課程預約系統</h1>
+
+    <div class="card">
+      <label for="courseSelect">1) 選擇課程</label>
+      <select id="courseSelect"></select>
+
+      <label for="slotSelect">2) 選擇時段</label>
+      <select id="slotSelect"></select>
+
+      <label for="studentName">3) 姓名</label>
+      <input id="studentName" placeholder="王小明" />
+
+      <label for="studentEmail">4) Email</label>
+      <input id="studentEmail" placeholder="you@example.com" />
+
+      <button id="bookBtn">送出預約</button>
+      <div id="message"></div>
+    </div>
+
+    <script>
+      const courseSelect = document.getElementById('courseSelect');
+      const slotSelect = document.getElementById('slotSelect');
+      const messageEl = document.getElementById('message');
+      const bookBtn = document.getElementById('bookBtn');
+
+      const apiBase = window.location.href.split('?')[0];
+      const courses = [];
+      const slots = [];
+
+      const showMessage = (text, isError = false) => {
+        messageEl.innerHTML = `<div class="message ${isError ? 'error' : 'ok'}">${text}</div>`;
+      };
+
+      const getJson = async (url) => {
+        const res = await fetch(url);
+        return res.json();
+      };
+
+      const postJson = async (payload) => {
+        const res = await fetch(apiBase, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        return res.json();
+      };
+
+      const renderCourses = (list) => {
+        courseSelect.innerHTML = list
+          .map((course) => `<option value="${course.courseId}">${course.name}</option>`)
+          .join('');
+      };
+
+      const renderSlots = (list) => {
+        slotSelect.innerHTML = list
+          .map(
+            (slot) =>
+              `<option value="${slot.slotId}">${slot.startAtDisplay} - ${slot.endAtDisplay} / ${slot.teacherName} / 可預約 ${slot.available}</option>`
+          )
+          .join('');
+      };
+
+      const loadCourses = async () => {
+        const data = await getJson(`${apiBase}?route=courses`);
+        if (!data.ok) throw new Error(data.error.message);
+        courses.splice(0, courses.length, ...data.data);
+        renderCourses(courses);
+      };
+
+      const loadSlots = async (courseId) => {
+        const data = await getJson(`${apiBase}?route=slots&courseId=${encodeURIComponent(courseId)}`);
+        if (!data.ok) throw new Error(data.error.message);
+        slots.splice(0, slots.length, ...data.data);
+        renderSlots(slots);
+      };
+
+      bookBtn.addEventListener('click', async () => {
+        try {
+          const payload = {
+            action: 'book',
+            slotId: slotSelect.value,
+            studentName: document.getElementById('studentName').value.trim(),
+            studentEmail: document.getElementById('studentEmail').value.trim(),
+          };
+          const data = await postJson(payload);
+          if (!data.ok) throw new Error(data.error.message);
+          showMessage(`預約成功，編號：${data.data.bookingId}`);
+          await loadSlots(courseSelect.value);
+        } catch (err) {
+          showMessage(err.message, true);
+        }
+      });
+
+      courseSelect.addEventListener('change', () => loadSlots(courseSelect.value));
+
+      (async () => {
+        try {
+          await loadCourses();
+          if (courseSelect.value) {
+            await loadSlots(courseSelect.value);
+          }
+        } catch (err) {
+          showMessage(err.message, true);
+        }
+      })();
+    </script>
+  </body>
+</html>
