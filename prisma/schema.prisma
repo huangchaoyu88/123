@@ -1,0 +1,70 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum SlotStatus {
+  OPEN
+  CLOSED
+}
+
+enum BookingStatus {
+  ACTIVE
+  CANCELED
+}
+
+model Course {
+  id              String     @id @default(cuid())
+  title           String
+  description     String
+  durationMinutes Int
+  price           Int
+  isActive        Boolean    @default(true)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  timeSlots       TimeSlot[]
+}
+
+model Teacher {
+  id        String     @id @default(cuid())
+  name      String
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  timeSlots TimeSlot[]
+}
+
+model TimeSlot {
+  id          String        @id @default(cuid())
+  courseId    String
+  teacherId   String
+  startTime   DateTime
+  capacity    Int
+  bookedCount Int           @default(0)
+  status      SlotStatus    @default(OPEN)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  course      Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  teacher     Teacher       @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+  bookings    Booking[]
+
+  @@index([courseId, startTime])
+}
+
+model Booking {
+  id         String        @id @default(cuid())
+  timeSlotId String
+  name       String
+  phone      String
+  email      String
+  note       String?
+  status     BookingStatus @default(ACTIVE)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+  timeSlot   TimeSlot      @relation(fields: [timeSlotId], references: [id], onDelete: Cascade)
+
+  @@index([timeSlotId, status])
+}
